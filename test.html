@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Pacman Client</title>
+	<style>
+		body {
+			font-family: Arial, sans-serif;
+			margin: 20px;
+		}
+		
+		#status {
+			margin-bottom: 20px;
+		}
+		
+		#players {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 10px;
+		}
+		
+		.player-box {
+			border: 2px solid #333;
+			border-radius: 8px;
+			padding: 10px;
+			min-width: 120px;
+			text-align: center;
+			background-color: #f0f0f0;
+		}
+		
+		.player-id {
+			font-weight: bold;
+			margin-bottom: 5px;
+			font-size: 12px;
+		}
+		
+		.arrows {
+			display: grid;
+			grid-template-columns: 1fr 1fr 1fr;
+			grid-template-rows: 1fr 1fr 1fr;
+			gap: 2px;
+			width: 60px;
+			height: 60px;
+			margin: 0 auto;
+		}
+		
+		.arrow {
+			background-color: #ddd;
+			border: 1px solid #999;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			font-size: 16px;
+			transition: background-color 0.1s;
+		}
+		
+		.arrow.active {
+			background-color: #4CAF50;
+			color: white;
+		}
+		
+		.arrow.up { grid-column: 2; grid-row: 1; }
+		.arrow.left { grid-column: 1; grid-row: 2; }
+		.arrow.right { grid-column: 3; grid-row: 2; }
+		.arrow.down { grid-column: 2; grid-row: 3; }
+	</style>
+</head>
+<body>
+	<div id="status">
+		<div>Connected Players: <span id="playerCount">0</span></div>
+		<div>Current Direction: <span id="currentDirection">None</span></div>
+	</div>
+	
+	<div id="players"></div>
+
+	<script>
+		let ws;
+		let heldKeys = new Set();
+		let playerStates = new Map(); // Track each player's held keys
+
+		// Connect to PartyKit server
+		function connect() {
+			// Replace with your actual PartyKit URL
+			ws = new WebSocket('ws://localhost:1999/party/main');
+			
+			ws.onopen = () => {
+				console.log('Connected to Pacman server');
+			};
+			
+			ws.onmessage = (event) => {
+				const data = JSON.parse(event.data);
+				if (data.type === 'gameState') {
+					console.log('Game state:', data.data);
+					updateGameState(data.data);
+				}
+			};
+			
+			ws.onclose = () => {
+				console.log('Disconnected from server');
+				// Reconnect after 1 second
+				setTimeout(connect, 1000);
+			};
+			
+			ws.onerror = (error) => {
+				console.error('WebSocket error:', error);
+			};
+		}
+
+		// Update the game state display
+		function updateGameState(gameState) {
+			// Update player count
+			document.getElementById('playerCount').textContent = gameState.connectedUsers;
+			
+			// Update current direction
+			const direction = gameState.currentDirection;
+			let directionText = 'None';
+			if (direction.vertical && direction.horizontal) {
+				directionText = `${direction.vertical}-${direction.horizontal}`;
+			} else if (direction.vertical) {
+				directionText = direction.vertical;
+			} else if (direction.horizontal) {
+				directionText = direction.horizontal;
+			}
+			document.getElementById('currentDirection').textContent = directionText;
+		}
+
+		// Send key down event
+		function sendKeyDown(key) {
+			if (ws && ws.readyState === WebSocket.OPEN) {
+				ws.send(JSON.stringify({
+					type: 'keyDown',
+					key: key
+				}));
+			}
+		}
+
+		// Send key up event
+		function sendKeyUp(key) {
+			if (ws && ws.readyState === WebSocket.OPEN) {
+				ws.send(JSON.stringify({
+					type: 'keyUp',
+					key: key
+				}));
+			}
+		}
+
+		// Handle keydown events
+		document.addEventListener('keydown', (event) => {
+			// Only handle arrow keys
+			if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
+				event.preventDefault();
+				
+				// Only send if key wasn't already held down
+				if (!heldKeys.has(event.key)) {
+					heldKeys.add(event.key);
+					sendKeyDown(event.key);
+					console.log('Key down:', event.key);
+				}
+			}
+		});
+
+		// Handle keyup events
+		document.addEventListener('keyup', (event) => {
+			// Only handle arrow keys
+			if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
+				event.preventDefault();
+				
+				// Only send if key was actually held down
+				if (heldKeys.has(event.key)) {
+					heldKeys.delete(event.key);
+					sendKeyUp(event.key);
+					console.log('Key up:', event.key);
+				}
+			}
+		});
+
+		// Handle window focus/blur to reset held keys
+		window.addEventListener('blur', () => {
+			// Send key up for all held keys when window loses focus
+			heldKeys.forEach(key => {
+				sendKeyUp(key);
+				console.log('Key up (window blur):', key);
+			});
+			heldKeys.clear();
+		});
+
+		// Connect when page loads
+		connect();
+	</script>
+</body>
+</html>
