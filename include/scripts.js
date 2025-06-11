@@ -7,11 +7,66 @@ const keyToDirection = {
   'ArrowRight': 'right'
 }
 
+let direction = 'right'
+
 // When page loads
 document.addEventListener("DOMContentLoaded", () => {
 
 	// Connect when page loads
 	connect();
+
+	const container = document.querySelector('main');
+	const block = document.querySelector('.block');
+
+	let containerRect = container.getBoundingClientRect();
+
+	// request animation frame and move the block 10px in direction defined by direction
+	requestAnimationFrame(function moveBlock() {
+		if (block) {
+			let blockRect = block.getBoundingClientRect();
+
+			// Move the block based on the current direction at a defined speed (e.g., 10px/s)
+			const speed = 500; // pixels per second
+			const now = performance.now();
+			if (!block.lastMoveTime) block.lastMoveTime = now;
+			const deltaTime = (now - block.lastMoveTime) / 1000; // seconds
+			const moveAmount = speed * deltaTime;
+
+			let top = parseFloat(block.style.top) || blockRect.top - containerRect.top;
+			let left = parseFloat(block.style.left) || blockRect.left - containerRect.left;
+
+			switch (direction) {
+				case 'up':
+					top -= moveAmount;
+					break;
+				case 'down':
+					top += moveAmount;
+					break;
+				case 'left':
+					left -= moveAmount;
+					break;
+				case 'right':
+					left += moveAmount;
+					break;
+			}
+
+			block.style.top = `${top}px`;
+			block.style.left = `${left}px`;
+			block.lastMoveTime = now;
+			
+		//	// If block reaches edge of container, then lap
+			if (blockRect.top < 0) {
+				block.style.top = `${containerRect.height - blockRect.height}px`;
+			}else if (blockRect.left < 0){
+				block.style.left = `${containerRect.width - blockRect.width}px`;				
+			}else if (blockRect.top > containerRect.height) {
+				block.style.top = '0px';
+			}else if (blockRect.left > containerRect.width) {
+				block.style.left = '0px';
+			}
+		}
+		requestAnimationFrame(moveBlock);
+	});
 	
 });
 
@@ -21,7 +76,7 @@ let heldKeys = new Set();
 // Connect to PartyKit server
 function connect() {
 	// Replace with your actual PartyKit URL
-	ws = new WebSocket('ws://localhost:1999/party/main');
+	ws = new WebSocket('https://my-partykit-game.gcsalzburg.partykit.dev/party/main');
 	
 	ws.onopen = () => {
 		console.log('Connected to Pacman server');
@@ -30,7 +85,8 @@ function connect() {
 	ws.onmessage = (event) => {
 		const data = JSON.parse(event.data);
 		if (data.type === 'gameState') {
-			console.log('Game state:', data.data);
+			console.log('dir:', data.data.currentDirection.vertical ?? data.data.currentDirection.horizontal);
+			direction = data.data.currentDirection.vertical ?? data.data.currentDirection.horizontal;
 		}
 	};
 	
