@@ -148,15 +148,15 @@ class Game {
 	}
 
 	keyDown(e) {
-		if (e.keyCode === KEY.N) {
+		if (e.key === 'n' || e.key === 'N') {
 			this.startNewGame()
-		} else if (e.keyCode === KEY.S) {
+		} else if (e.key === 's' || e.key === 'S') {
 			this.audio.toggleSound()
-		} else if (e.keyCode === KEY.P && this.state === PAUSE) {
+		} else if ((e.key === 'p' || e.key === 'P') && this.state === PAUSE) {
 			this.audio.resume()
 			this.map.draw(this.ctx)
 			this.setState(this.stored)
-		} else if (e.keyCode === KEY.P) {
+		} else if (e.key === 'p' || e.key === 'P') {
 			this.stored = this.state
 			this.setState(PAUSE)
 			this.audio.pause()

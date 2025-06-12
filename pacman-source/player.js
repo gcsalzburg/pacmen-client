@@ -16,10 +16,10 @@ class Player {
     }
 
     setupKeyMapping() {
-        this.keyMap[KEY.ARROW_LEFT] = LEFT
-        this.keyMap[KEY.ARROW_UP] = UP
-        this.keyMap[KEY.ARROW_RIGHT] = RIGHT
-        this.keyMap[KEY.ARROW_DOWN] = DOWN
+        this.keyMap["ArrowLeft"] = LEFT
+        this.keyMap["ArrowUp"] = UP
+        this.keyMap["ArrowRight"] = RIGHT
+        this.keyMap["ArrowDown"] = DOWN
     }
 
     addScore(nScore) { 
@@ -64,8 +64,8 @@ class Player {
     }
 
     keyDown(e) {
-        if (typeof this.keyMap[e.keyCode] !== "undefined") { 
-            this.due = this.keyMap[e.keyCode]
+        if (typeof this.keyMap[e.key] !== "undefined") { 
+            this.due = this.keyMap[e.key]
             e.preventDefault()
             e.stopPropagation()
             return false
