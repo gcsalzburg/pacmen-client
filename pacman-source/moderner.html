@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Modern Pacman</title>
+	<style>
+		body {
+			margin: 0;
+			padding: 20px;
+			background: #000;
+			color: #fff;
+			font-family: Arial, sans-serif;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			min-height: 100vh;
+		}
+		
+		#gameContainer {
+			border: 2px solid #00f;
+			background: #000;
+		}
+		
+		canvas {
+			display: block;
+		}
+	</style>
+</head>
+<body>
+	<div id="gameContainer">
+		<canvas id="gameCanvas"></canvas>
+	</div>
+
+	<script>
+		// Game Constants
+		const DIRECTIONS = {
+			NONE: 4,
+			UP: 3,
+			LEFT: 2,
+			DOWN: 1,
+			RIGHT: 11
+		}
+
+		const GAME_STATES = {
+			WAITING: 5,
+			PAUSE: 6,
+			PLAYING: 7,
+			COUNTDOWN: 8,
+			EATEN_PAUSE: 9,
+			DYING: 10
+		}
+
+		const TILE_TYPES = {
+			WALL: 0,
+			BISCUIT: 1,
+			EMPTY: 2,
+			BLOCK: 3,
+			PILL: 4
+		}
+
+		const KEYS = {
+			'N': 78,
+			'S': 83,
+			'P': 80,
+			'ArrowLeft': 37,
+			'ArrowUp': 38,
+			'ArrowRight': 39,
+			'ArrowDown': 40
+		}
+
+		const FPS = 30
+		const GHOST_COLORS = ["#00FFDE", "#FF0000", "#FFB8DE", "#FFB847"]
+
+		const MAP_DATA = [
+			[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+			[0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+			[0, 4, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 4, 0],
+			[0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0],
+			[0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+			[0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0],
+			[0, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0],
+			[0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0],
+			[2, 2, 2, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 2, 2, 2],
+			[0, 0, 0, 0, 1, 0, 1, 0, 0, 3, 0, 0, 1, 0, 1, 0, 0, 0, 0],
+			[2, 2, 2, 2, 1, 1, 1, 0, 3, 3, 3, 0, 1, 1, 1, 2, 2, 2, 2],
+			[0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0],
+			[2, 2, 2, 0, 1, 0, 1, 1, 1, 2, 1, 1, 1, 0, 1, 0, 2, 2, 2],
+			[0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0],
+			[0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+			[0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0],
+			[0, 4, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 4, 0],
+			[0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0],
+			[0, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0],
+			[0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0],
+			[0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+			[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+		]
+
+		const WALL_PATHS = [
+			[{"move": [0, 9.5]}, {"line": [3, 9.5]}, {"curve": [3.5, 9.5, 3.5, 9]}, {"line": [3.5, 8]}, {"curve": [3.5, 7.5, 3, 7.5]}, {"line": [1, 7.5]}, {"curve": [0.5, 7.5, 0.5, 7]}, {"line": [0.5, 1]}, {"curve": [0.5, 0.5, 1, 0.5]}, {"line": [9, 0.5]}, {"curve": [9.5, 0.5, 9.5, 1]}, {"line": [9.5, 3.5]}],
+			[{"move": [9.5, 1]}, {"curve": [9.5, 0.5, 10, 0.5]}, {"line": [18, 0.5]}, {"curve": [18.5, 0.5, 18.5, 1]}, {"line": [18.5, 7]}, {"curve": [18.5, 7.5, 18, 7.5]}, {"line": [16, 7.5]}, {"curve": [15.5, 7.5, 15.5, 8]}, {"line": [15.5, 9]}, {"curve": [15.5, 9.5, 16, 9.5]}, {"line": [19, 9.5]}],
+			[{"move": [2.5, 5.5]}, {"line": [3.5, 5.5]}],
+			[{"move": [3, 2.5]}, {"curve": [3.5, 2.5, 3.5, 3]}, {"curve": [3.5, 3.5, 3, 3.5]}, {"curve": [2.5, 3.5, 2.5, 3]}, {"curve": [2.5, 2.5, 3, 2.5]}],
+			[{"move": [15.5, 5.5]}, {"line": [16.5, 5.5]}],
+			[{"move": [16, 2.5]}, {"curve": [16.5, 2.5, 16.5, 3]}, {"curve": [16.5, 3.5, 16, 3.5]}, {"curve": [15.5, 3.5, 15.5, 3]}, {"curve": [15.5, 2.5, 16, 2.5]}],
+			[{"move": [6, 2.5]}, {"line": [7, 2.5]}, {"curve": [7.5, 2.5, 7.5, 3]}, {"curve": [7.5, 3.5, 7, 3.5]}, {"line": [6, 3.5]}, {"curve": [5.5, 3.5, 5.5, 3]}, {"curve": [5.5, 2.5, 6, 2.5]}],
+			[{"move": [12, 2.5]}, {"line": [13, 2.5]}, {"curve": [13.5, 2.5, 13.5, 3]}, {"curve": [13.5, 3.5, 13, 3.5]}, {"line": [12, 3.5]}, {"curve": [11.5, 3.5, 11.5, 3]}, {"curve": [11.5, 2.5, 12, 2.5]}],
+			[{"move": [7.5, 5.5]}, {"line": [9, 5.5]}, {"curve": [9.5, 5.5, 9.5, 6]}, {"line": [9.5, 7.5]}],
+			[{"move": [9.5, 6]}, {"curve": [9.5, 5.5, 10.5, 5.5]}, {"line": [11.5, 5.5]}],
+			[{"move": [5.5, 5.5]}, {"line": [5.5, 7]}, {"curve": [5.5, 7.5, 6, 7.5]}, {"line": [7.5, 7.5]}],
+			[{"move": [6, 7.5]}, {"curve": [5.5, 7.5, 5.5, 8]}, {"line": [5.5, 9.5]}],
+			[{"move": [13.5, 5.5]}, {"line": [13.5, 7]}, {"curve": [13.5, 7.5, 13, 7.5]}, {"line": [11.5, 7.5]}],
+			[{"move": [13, 7.5]}, {"curve": [13.5, 7.5, 13.5, 8]}, {"line": [13.5, 9.5]}],
+			[{"move": [0, 11.5]}, {"line": [3, 11.5]}, {"curve": [3.5, 11.5, 3.5, 12]}, {"line": [3.5, 13]}, {"curve": [3.5, 13.5, 3, 13.5]}, {"line": [1, 13.5]}, {"curve": [0.5, 13.5, 0.5, 14]}, {"line": [0.5, 17]}, {"curve": [0.5, 17.5, 1, 17.5]}, {"line": [1.5, 17.5]}],
+			[{"move": [1, 17.5]}, {"curve": [0.5, 17.5, 0.5, 18]}, {"line": [0.5, 21]}, {"curve": [0.5, 21.5, 1, 21.5]}, {"line": [18, 21.5]}, {"curve": [18.5, 21.5, 18.5, 21]}, {"line": [18.5, 18]}, {"curve": [18.5, 17.5, 18, 17.5]}, {"line": [17.5, 17.5]}],
+			[{"move": [18, 17.5]}, {"curve": [18.5, 17.5, 18.5, 17]}, {"line": [18.5, 14]}, {"curve": [18.5, 13.5, 18, 13.5]}, {"line": [16, 13.5]}, {"curve": [15.5, 13.5, 15.5, 13]}, {"line": [15.5, 12]}, {"curve": [15.5, 11.5, 16, 11.5]}, {"line": [19, 11.5]}],
+			[{"move": [5.5, 11.5]}, {"line": [5.5, 13.5]}],
+			[{"move": [13.5, 11.5]}, {"line": [13.5, 13.5]}],
+			[{"move": [2.5, 15.5]}, {"line": [3, 15.5]}, {"curve": [3.5, 15.5, 3.5, 16]}, {"line": [3.5, 17.5]}],
+			[{"move": [16.5, 15.5]}, {"line": [16, 15.5]}, {"curve": [15.5, 15.5, 15.5, 16]}, {"line": [15.5, 17.5]}],
+			[{"move": [5.5, 15.5]}, {"line": [7.5, 15.5]}],
+			[{"move": [11.5, 15.5]}, {"line": [13.5, 15.5]}],
+			[{"move": [2.5, 19.5]}, {"line": [5, 19.5]}, {"curve": [5.5, 19.5, 5.5, 19]}, {"line": [5.5, 17.5]}],
+			[{"move": [5.5, 19]}, {"curve": [5.5, 19.5, 6, 19.5]}, {"line": [7.5, 19.5]}],
+			[{"move": [11.5, 19.5]}, {"line": [13, 19.5]}, {"curve": [13.5, 19.5, 13.5, 19]}, {"line": [13.5, 17.5]}],
+			[{"move": [13.5, 19]}, {"curve": [13.5, 19.5, 14, 19.5]}, {"line": [16.5, 19.5]}],
+			[{"move": [7.5, 13.5]}, {"line": [9, 13.5]}, {"curve": [9.5, 13.5, 9.5, 14]}, {"line": [9.5, 15.5]}],
+			[{"move": [9.5, 14]}, {"curve": [9.5, 13.5, 10, 13.5]}, {"line": [11.5, 13.5]}],
+			[{"move": [7.5, 17.5]}, {"line": [9, 17.5]}, {"curve": [9.5, 17.5, 9.5, 18]}, {"line": [9.5, 19.5]}],
+			[{"move": [9.5, 18]}, {"curve": [9.5, 17.5, 10, 17.5]}, {"line": [11.5, 17.5]}],
+			[{"move": [8.5, 9.5]}, {"line": [8, 9.5]}, {"curve": [7.5, 9.5, 7.5, 10]}, {"line": [7.5, 11]}, {"curve": [7.5, 11.5, 8, 11.5]}, {"line": [11, 11.5]}, {"curve": [11.5, 11.5, 11.5, 11]}, {"line": [11.5, 10]}, {"curve": [11.5, 9.5, 11, 9.5]}, {"line": [10.5, 9.5]}]
+		]
+
+		// Utility Functions
+		function cloneArray(arr) {
+			return arr.map(row => Array.isArray(row) ? cloneArray(row) : row)
+		}
+
+		function isOnWholeSquare(x) {
+			return x % 10 === 0
+		}
+
+		function pointToCoord(x) {
+			return Math.round(x / 10)
+		}
+
+		function nextSquare(x, dir) {
+			const rem = x % 10
+			if (rem === 0) {
+				return x
+			} else if (dir === DIRECTIONS.RIGHT || dir === DIRECTIONS.DOWN) {
+				return x + (10 - rem)
+			} else {
+				return x - rem
+			}
+		}
+
+		function collided(pos1, pos2) {
+			return Math.sqrt(Math.pow(pos1.x - pos2.x, 2) + Math.pow(pos1.y - pos2.y, 2)) < 10
+		}
+
+		// AudioManager Class
+		class AudioManager {
+			constructor() {
+				this.sounds = new Map()
+				this.playing = []
+				this.disabled = localStorage.getItem('soundDisabled') === 'true'
+			}
+
+			async loadSound(name, path) {
+				const audio = new Audio()
+				audio.preload = 'auto'
+				audio.src = path
+				
+				return new Promise((resolve) => {
+					audio.addEventListener('canplaythrough', () => {
+						this.sounds.set(name, audio)
+						resolve()
+					}, { once: true })
+				})
+			}
+
+			play(name) {
+				if (this.disabled || !this.sounds.has(name)) return
+				
+				const audio = this.sounds.get(name)
+				audio.currentTime = 0
+				audio.play()
+				
+				this.playing.push(name)
+				audio.addEventListener('ended', () => {
+					const index = this.playing.indexOf(name)
+					if (index > -1) this.playing.splice(index, 1)
+				}, { once: true })
+			}
+
+			pause() {
+				this.playing.forEach(name => {
+					const audio = this.sounds.get(name)
+					if (audio) audio.pause()
+				})
+			}
+
+			resume() {
+				this.playing.forEach(name => {
+					const audio = this.sounds.get(name)
+					if (audio) audio.play()
+				})
+			}
+
+			toggleSound() {
+				this.disabled = !this.disabled
+				localStorage.setItem('soundDisabled', this.disabled.toString())
+				if (this.disabled) {
+					this.playing.forEach(name => {
+						const audio = this.sounds.get(name)
+						if (audio) {
+							audio.pause()
+							audio.currentTime = 0
+						}
+					})
+					this.playing = []
+				}
+			}
+
+			isSoundDisabled() {
+				return this.disabled
+			}
+		}
+
+		// GameMap Class
+		class GameMap {
+			constructor(blockSize) {
+				this.blockSize = blockSize
+				this.pillSize = 0
+				this.reset()
+			}
+
+			reset() {
+				this.map = cloneArray(MAP_DATA)
+				this.height = this.map.length
+				this.width = this.map[0].length
+			}
+
+			withinBounds(y, x) {
+				return y >= 0 && y < this.height && x >= 0 && x < this.width
+			}
+
+			block(pos) {
+				return this.map[pos.y][pos.x]
+			}
+
+			setBlock(pos, type) {
+				this.map[pos.y][pos.x] = type
+			}
+
+			isWallSpace(pos) {
+				return this.withinBounds(pos.y, pos.x) && this.map[pos.y][pos.x] === TILE_TYPES.WALL
+			}
+
+			isFloorSpace(pos) {
+				if (!this.withinBounds(pos.y, pos.x)) return false
+				const piece = this.map[pos.y][pos.x]
+				return piece === TILE_TYPES.EMPTY || piece === TILE_TYPES.BISCUIT || piece === TILE_TYPES.PILL
+			}
+
+			draw(ctx) {
+				ctx.fillStyle = "#000"
+				ctx.fillRect(0, 0, this.width * this.blockSize, this.height * this.blockSize)
+
+				this.drawWalls(ctx)
+				
+				for (let i = 0; i < this.height; i++) {
+					for (let j = 0; j < this.width; j++) {
+						this.drawBlock(i, j, ctx)
+					}
+				}
+			}
+
+			drawWalls(ctx) {
+				ctx.strokeStyle = "#0000FF"
+				ctx.lineWidth = 5
+				ctx.lineCap = "round"
+				
+				WALL_PATHS.forEach(line => {
+					ctx.beginPath()
+					line.forEach(p => {
+						if (p.move) {
+							ctx.moveTo(p.move[0] * this.blockSize, p.move[1] * this.blockSize)
+						} else if (p.line) {
+							ctx.lineTo(p.line[0] * this.blockSize, p.line[1] * this.blockSize)
+						} else if (p.curve) {
+							ctx.quadraticCurveTo(
+								p.curve[0] * this.blockSize, p.curve[1] * this.blockSize,
+								p.curve[2] * this.blockSize, p.curve[3] * this.blockSize
+							)
+						}
+					})
+					ctx.stroke()
+				})
+			}
+
+			drawBlock(y, x, ctx) {
+				const layout = this.map[y][x]
+				
+				if (layout === TILE_TYPES.PILL) return
+
+				ctx.beginPath()
+				
+				if (layout === TILE_TYPES.EMPTY || layout === TILE_TYPES.BLOCK || layout === TILE_TYPES.BISCUIT) {
+					ctx.fillStyle = "#000"
+					ctx.fillRect(x * this.blockSize, y * this.blockSize, this.blockSize, this.blockSize)
+
+					if (layout === TILE_TYPES.BISCUIT) {
+						ctx.fillStyle = "#FFF"
+						ctx.fillRect(
+							x * this.blockSize + this.blockSize / 2.5,
+							y * this.blockSize + this.blockSize / 2.5,
+							this.blockSize / 6, this.blockSize / 6
+						)
+					}
+				}
+				ctx.closePath()
+			}
+
+			drawPills(ctx) {
+				if (++this.pillSize > 30) {
+					this.pillSize = 0
+				}
+				
+				for (let i = 0; i < this.height; i++) {
+					for (let j = 0; j < this.width; j++) {
+						if (this.map[i][j] === TILE_TYPES.PILL) {
+							ctx.beginPath()
+
+							ctx.fillStyle = "#000"
+							ctx.fillRect(j * this.blockSize, i * this.blockSize, this.blockSize, this.blockSize)
+
+							ctx.fillStyle = "#FFF"
+							ctx.arc(
+								j * this.blockSize + this.blockSize / 2,
+								i * this.blockSize + this.blockSize / 2,
+								Math.abs(5 - this.pillSize / 3),
+								0, Math.PI * 2, false
+							)
+							ctx.fill()
+							ctx.closePath()
+						}
+					}
+				}
+			}
+		}
+
+		// Player Class
+		class Player {
+			constructor(game, map) {
+				this.game = game
+				this.map = map
+				this.reset()
+				this.setupKeyMapping()
+			}
+
+			setupKeyMapping() {
+				this.keyMap = {
+					[KEYS.ArrowLeft]: DIRECTIONS.LEFT,
+					[KEYS.ArrowUp]: DIRECTIONS.UP,
+					[KEYS.ArrowRight]: DIRECTIONS.RIGHT,
+					[KEYS.ArrowDown]: DIRECTIONS.DOWN
+				}
+			}
+
+			reset() {
+				this.score = 0
+				this.lives = 3
+				this.newLevel()
+			}
+
+			newLevel() {
+				this.resetPosition()
+				this.eaten = 0
+			}
+
+			resetPosition() {
+				this.position = { x: 90, y: 120 }
+				this.direction = DIRECTIONS.LEFT
+				this.due = DIRECTIONS.LEFT
+			}
+
+			addScore(points) {
+				this.score += points
+				if (this.score >= 10000 && this.score - points < 10000) {
+					this.lives += 1
+				}
+			}
+
+			loseLife() {
+				this.lives -= 1
+			}
+
+			handleKeyDown(keyCode) {
+				if (this.keyMap[keyCode] !== undefined) {
+					this.due = this.keyMap[keyCode]
+					return false
+				}
+				return true
+			}
+
+			getNewCoord(dir, current) {
+				return {
+					x: current.x + (dir === DIRECTIONS.LEFT ? -2 : dir === DIRECTIONS.RIGHT ? 2 : 0),
+					y: current.y + (dir === DIRECTIONS.DOWN ? 2 : dir === DIRECTIONS.UP ? -2 : 0)
+				}
+			}
+
+			next(pos, dir) {
+				return {
+					y: pointToCoord(nextSquare(pos.y, dir)),
+					x: pointToCoord(nextSquare(pos.x, dir))
+				}
+			}
+
+			onGridSquare(pos) {
+				return isOnWholeSquare(pos.y) && isOnWholeSquare(pos.x)
+			}
+
+			isOnSamePlane(due, dir) {
+				return ((due === DIRECTIONS.LEFT || due === DIRECTIONS.RIGHT) && 
+						(dir === DIRECTIONS.LEFT || dir === DIRECTIONS.RIGHT)) ||
+					   ((due === DIRECTIONS.UP || due === DIRECTIONS.DOWN) && 
+						(dir === DIRECTIONS.UP || dir === DIRECTIONS.DOWN))
+			}
+
+			isMidSquare(x) {
+				const rem = x % 10
+				return rem > 3 || rem < 7
+			}
+
+			move() {
+				let npos = null
+				const oldPosition = { ...this.position }
+
+				if (this.due !== this.direction) {
+					npos = this.getNewCoord(this.due, this.position)
+					
+					if (this.isOnSamePlane(this.due, this.direction) ||
+						(this.onGridSquare(this.position) && this.map.isFloorSpace(this.next(npos, this.due)))) {
+						this.direction = this.due
+					} else {
+						npos = null
+					}
+				}
+
+				if (npos === null) {
+					npos = this.getNewCoord(this.direction, this.position)
+				}
+
+				if (this.onGridSquare(this.position) && this.map.isWallSpace(this.next(npos, this.direction))) {
+					this.direction = DIRECTIONS.NONE
+				}
+
+				if (this.direction === DIRECTIONS.NONE) {
+					return { new: this.position, old: this.position }
+				}
+
+				// Handle tunnel
+				if (npos.y === 100 && npos.x >= 190 && this.direction === DIRECTIONS.RIGHT) {
+					npos = { y: 100, x: -10 }
+				}
+				if (npos.y === 100 && npos.x <= -12 && this.direction === DIRECTIONS.LEFT) {
+					npos = { y: 100, x: 190 }
+				}
+
+				this.position = npos
+				const nextWhole = this.next(this.position, this.direction)
+				const block = this.map.block(nextWhole)
+
+				if ((this.isMidSquare(this.position.y) || this.isMidSquare(this.position.x)) &&
+					(block === TILE_TYPES.BISCUIT || block === TILE_TYPES.PILL)) {
+					
+					this.map.setBlock(nextWhole, TILE_TYPES.EMPTY)
+					this.addScore(block === TILE_TYPES.BISCUIT ? 10 : 50)
+					this.eaten += 1
+
+					if (this.eaten === 182) {
+						this.game.completedLevel()
+					}
+
+					if (block === TILE_TYPES.PILL) {
+						this.game.eatenPill()
+					}
+				}
+
+				return { new: this.position, old: oldPosition }
+			}
+
+			calcAngle(dir, pos) {
+				if (dir === DIRECTIONS.RIGHT && (pos.x % 10 < 5)) {
+					return { start: 0.25, end: 1.75, direction: false }
+				} else if (dir === DIRECTIONS.DOWN && (pos.y % 10 < 5)) {
+					return { start: 0.75, end: 2.25, direction: false }
+				} else if (dir === DIRECTIONS.UP && (pos.y % 10 < 5)) {
+					return { start: 1.25, end: 1.75, direction: true }
+				} else if (dir === DIRECTIONS.LEFT && (pos.x % 10 < 5)) {
+					return { start: 0.75, end: 1.25, direction: true }
+				}
+				return { start: 0, end: 2, direction: false }
+			}
+
+			draw(ctx) {
+				const s = this.map.blockSize
+				const angle = this.calcAngle(this.direction, this.position)
+
+				ctx.fillStyle = "#FFFF00"
+				ctx.beginPath()
+				ctx.moveTo(
+					(this.position.x / 10) * s + s / 2,
+					(this.position.y / 10) * s + s / 2
+				)
+				ctx.arc(
+					(this.position.x / 10) * s + s / 2,
+					(this.position.y / 10) * s + s / 2,
+					s / 2,
+					Math.PI * angle.start,
+					Math.PI * angle.end,
+					angle.direction
+				)
+				ctx.fill()
+			}
+
+			drawDead(ctx, amount) {
+				if (amount >= 1) return
+
+				const size = this.map.blockSize
+				const half = size / 2
+
+				ctx.fillStyle = "#FFFF00"
+				ctx.beginPath()
+				ctx.moveTo(
+					(this.position.x / 10) * size + half,
+					(this.position.y / 10) * size + half
+				)
+				ctx.arc(
+					(this.position.x / 10) * size + half,
+					(this.position.y / 10) * size + half,
+					half, 0, Math.PI * 2 * amount, true
+				)
+				ctx.fill()
+			}
+		}
+
+		// Ghost Class
+		class Ghost {
+			constructor(game, map, color) {
+				this.game = game
+				this.map = map
+				this.color = color
+				this.reset()
+			}
+
+			reset() {
+				this.position = { x: 90, y: 80 }
+				this.direction = this.getRandomDirection()
+				this.due = this.getRandomDirection()
+				this.eatable = null
+				this.eaten = null
+			}
+
+			getRandomDirection() {
+				const moves = (this.direction === DIRECTIONS.LEFT || this.direction === DIRECTIONS.RIGHT)
+					? [DIRECTIONS.UP, DIRECTIONS.DOWN]
+					: [DIRECTIONS.LEFT, DIRECTIONS.RIGHT]
+				return moves[Math.floor(Math.random() * 2)]
+			}
+
+			getNewCoord(dir, current) {
+				const speed = this.isVulnerable() ? 1 : this.isHidden() ? 4 : 2
+				const xSpeed = dir === DIRECTIONS.LEFT ? -speed : dir === DIRECTIONS.RIGHT ? speed : 0
+				const ySpeed = dir === DIRECTIONS.DOWN ? speed : dir === DIRECTIONS.UP ? -speed : 0
+
+				return {
+					x: this.addBounded(current.x, xSpeed),
+					y: this.addBounded(current.y, ySpeed)
+				}
+			}
+
+			addBounded(x1, x2) {
+				const rem = x1 % 10
+				const result = rem + x2
+				if (rem !== 0 && result > 10) {
+					return x1 + (10 - rem)
+				} else if (rem > 0 && result < 0) {
+					return x1 - rem
+				}
+				return x1 + x2
+			}
+
+			isVulnerable() {
+				return this.eatable !== null
+			}
+
+			isDangerous() {
+				return this.eaten === null
+			}
+
+			isHidden() {
+				return this.eatable === null && this.eaten !== null
+			}
+
+			onGridSquare(pos) {
+				return isOnWholeSquare(pos.y) && isOnWholeSquare(pos.x)
+			}
+
+			oppositeDirection(dir) {
+				return dir === DIRECTIONS.LEFT ? DIRECTIONS.RIGHT :
+					   dir === DIRECTIONS.RIGHT ? DIRECTIONS.LEFT :
+					   dir === DIRECTIONS.UP ? DIRECTIONS.DOWN : DIRECTIONS.UP
+			}
+
+			makeEatable() {
+				this.direction = this.oppositeDirection(this.direction)
+				this.eatable = this.game.getTick()
+			}
+
+			eat() {
+				this.eatable = null
+				this.eaten = this.game.getTick()
+			}
+
+			nextSquare(x, dir) {
+				const rem = x % 10
+				if (rem === 0) {
+					return x
+				} else if (dir === DIRECTIONS.RIGHT || dir === DIRECTIONS.DOWN) {
+					return x + (10 - rem)
+				} else {
+					return x - rem
+				}
+			}
+
+			secondsAgo(tick) {
+				return (this.game.getTick() - tick) / FPS
+			}
+
+			getColor() {
+				if (this.eatable) {
+					if (this.secondsAgo(this.eatable) > 5) {
+						return this.game.getTick() % 20 > 10 ? "#FFFFFF" : "#0000BB"
+					} else {
+						return "#0000BB"
+					}
+				} else if (this.eaten) {
+					return "#222"
+				}
+				return this.color
+			}
+
+			handleTunnel(pos) {
+				if (pos.y === 100 && pos.x >= 190 && this.direction === DIRECTIONS.RIGHT) {
+					return { y: 100, x: -10 }
+				}
+				if (pos.y === 100 && pos.x <= -10 && this.direction === DIRECTIONS.LEFT) {
+					return { y: 100, x: 190 }
+				}
+				return false
+			}
+
+			move() {
+				const oldPos = { ...this.position }
+				const onGrid = this.onGridSquare(this.position)
+				let npos = null
+
+				if (this.due !== this.direction) {
+					npos = this.getNewCoord(this.due, this.position)
+					
+					if (onGrid && this.map.isFloorSpace({
+						y: pointToCoord(this.nextSquare(npos.y, this.due)),
+						x: pointToCoord(this.nextSquare(npos.x, this.due))
+					})) {
+						this.direction = this.due
+					} else {
+						npos = null
+					}
+				}
+
+				if (npos === null) {
+					npos = this.getNewCoord(this.direction, this.position)
+				}
+
+				if (onGrid && this.map.isWallSpace({
+					y: pointToCoord(this.nextSquare(npos.y, this.direction)),
+					x: pointToCoord(this.nextSquare(npos.x, this.direction))
+				})) {
+					this.due = this.getRandomDirection()
+					return this.move()
+				}
+
+				this.position = npos
+
+				const tmp = this.handleTunnel(this.position)
+				if (tmp) {
+					this.position = tmp
+				}
+
+				this.due = this.getRandomDirection()
+
+				return { new: this.position, old: oldPos }
+			}
+
+			draw(ctx) {
+				const s = this.map.blockSize
+				const top = (this.position.y / 10) * s
+				const left = (this.position.x / 10) * s
+
+				if (this.eatable && this.secondsAgo(this.eatable) > 8) {
+					this.eatable = null
+				}
+
+				if (this.eaten && this.secondsAgo(this.eaten) > 3) {
+					this.eaten = null
+				}
+
+				const tl = left + s
+				const base = top + s - 3
+				const inc = s / 10
+
+				const high = this.game.getTick() % 10 > 5 ? 3 : -3
+				const low = this.game.getTick() % 10 > 5 ? -3 : 3
+
+				ctx.fillStyle = this.getColor()
+				ctx.beginPath()
+
+				ctx.moveTo(left, base)
+				ctx.quadraticCurveTo(left, top, left + (s / 2), top)
+				ctx.quadraticCurveTo(left + s, top, left + s, base)
+
+				// Wavy bottom
+				ctx.quadraticCurveTo(tl - (inc * 1), base + high, tl - (inc * 2), base)
+				ctx.quadraticCurveTo(tl - (inc * 3), base + low, tl - (inc * 4), base)
+				ctx.quadraticCurveTo(tl - (inc * 5), base + high, tl - (inc * 6), base)
+				ctx.quadraticCurveTo(tl - (inc * 7), base + low, tl - (inc * 8), base)
+				ctx.quadraticCurveTo(tl - (inc * 9), base + high, tl - (inc * 10), base)
+
+				ctx.closePath()
+				ctx.fill()
+
+				// Eyes
+				ctx.beginPath()
+				ctx.fillStyle = "#FFF"
+				ctx.arc(left + 6, top + 6, s / 6, 0, 300, false)
+				ctx.arc((left + s) - 6, top + 6, s / 6, 0, 300, false)
+				ctx.closePath()
+				ctx.fill()
+
+				const f = s / 12
+				const off = {
+					[DIRECTIONS.RIGHT]: [f, 0],
+					[DIRECTIONS.LEFT]: [-f, 0],
+					[DIRECTIONS.UP]: [0, -f],
+					[DIRECTIONS.DOWN]: [0, f]
+				}
+
+				// Pupils
+				ctx.beginPath()
+				ctx.fillStyle = "#000"
+				ctx.arc(
+					left + 6 + off[this.direction][0],
+					top + 6 + off[this.direction][1],
+					s / 15, 0, 300, false
+				)
+				ctx.arc(
+					(left + s) - 6 + off[this.direction][0],
+					top + 6 + off[this.direction][1],
+					s / 15, 0, 300, false
+				)
+				ctx.closePath()
+				ctx.fill()
+			}
+		}
+
+		// Game Class
+		class Game {
+			constructor(canvas) {
+				this.canvas = canvas
+				this.ctx = canvas.getContext('2d')
+				this.state = GAME_STATES.WAITING
+				this.stateChanged = true
+				this.tick = 0
+				this.level = 0
+				this.eatenCount = 0
+				this.timerStart = null
+				this.lastTime = 0
+				this.stored = null
+				
+				this.setupCanvas()
+				this.init()
+			}
+
+			setupCanvas() {
+				const blockSize = Math.floor(window.innerWidth * 0.8 / 19)
+				this.canvas.width = blockSize * 19
+				this.canvas.height = blockSize * 22 + 30
+				
+				this.audioManager = new AudioManager()
+				this.map = new GameMap(blockSize)
+				this.player = new Player(this, this.map)
+				this.ghosts = GHOST_COLORS.map(color => new Ghost(this, this.map, color))
+			}
+
+			async init() {
+				this.map.draw(this.ctx)
+				this.dialog("Loading...")
+
+				// Load audio files
+				try {
+					await Promise.all([
+						this.audioManager.loadSound('start', 'data:audio/wav;base64,'),
+						this.audioManager.loadSound('die', 'data:audio/wav;base64,'),
+						this.audioManager.loadSound('eatghost', 'data:audio/wav;base64,'),
+						this.audioManager.loadSound('eatpill', 'data:audio/wav;base64,')
+					])
+				} catch (e) {
+					console.log('Audio loading failed, continuing without sound')
+				}
+
+				this.setupEventHandlers()
+				this.dialog("Press N to Start")
+				this.startGameLoop()
+			}
+
+			setupEventHandlers() {
+				document.addEventListener('keydown', (e) => this.handleKeyDown(e))
+				document.addEventListener('keypress', (e) => this.handleKeyPress(e))
+			}
+
+			handleKeyDown(e) {
+				if (e.code === 'KeyN') {
+					this.startNewGame()
+				} else if (e.code === 'KeyS') {
+					this.audioManager.toggleSound()
+				} else if (e.code === 'KeyP' && this.state === GAME_STATES.PAUSE) {
+					this.audioManager.resume()
+					this.map.draw(this.ctx)
+					this.setState(this.stored)
+				} else if (e.code === 'KeyP') {
+					this.stored = this.state
+					this.setState(GAME_STATES.PAUSE)
+					this.audioManager.pause()
+					this.map.draw(this.ctx)
+					this.dialog("Paused")
+				} else if (this.state !== GAME_STATES.PAUSE) {
+					return this.player.handleKeyDown(e.keyCode)
+				}
+				return true
+			}
+
+			handleKeyPress(e) {
+				if (this.state !== GAME_STATES.WAITING && this.state !== GAME_STATES.PAUSE) {
+					e.preventDefault()
+					e.stopPropagation()
+				}
+			}
+
+			getTick() {
+				return this.tick
+			}
+
+			setState(newState) {
+				this.state = newState
+				this.stateChanged = true
+			}
+
+			startNewGame() {
+				this.setState(GAME_STATES.WAITING)
+				this.level = 1
+				this.player.reset()
+				this.map.reset()
+				this.map.draw(this.ctx)
+				this.startLevel()
+			}
+
+			startLevel() {
+				this.player.resetPosition()
+				this.ghosts.forEach(ghost => ghost.reset())
+				this.audioManager.play('start')
+				this.timerStart = this.tick
+				this.setState(GAME_STATES.COUNTDOWN)
+			}
+
+			completedLevel() {
+				this.setState(GAME_STATES.WAITING)
+				this.level += 1
+				this.map.reset()
+				this.player.newLevel()
+				this.startLevel()
+			}
+
+			eatenPill() {
+				this.audioManager.play('eatpill')
+				this.timerStart = this.tick
+				this.eatenCount = 0
+				this.ghosts.forEach(ghost => ghost.makeEatable())
+			}
+
+			loseLife() {
+				this.setState(GAME_STATES.WAITING)
+				this.player.loseLife()
+				if (this.player.lives > 0) {
+					this.startLevel()
+				}
+			}
+
+			dialog(text) {
+				this.ctx.fillStyle = "#FFFF00"
+				this.ctx.font = "14px Arial"
+				const width = this.ctx.measureText(text).width
+				const x = (this.map.width * this.map.blockSize - width) / 2
+				this.ctx.fillText(text, x, this.map.height * 10 + 8)
+			}
+
+			drawScore(text, position) {
+				this.ctx.fillStyle = "#FFFFFF"
+				this.ctx.font = "12px Arial"
+				this.ctx.fillText(
+					text,
+					(position.new.x / 10) * this.map.blockSize,
+					((position.new.y + 5) / 10) * this.map.blockSize
+				)
+			}
+
+			drawFooter() {
+				const topLeft = this.map.height * this.map.blockSize
+				const textBase = topLeft + 17
+
+				this.ctx.fillStyle = "#000000"
+				this.ctx.fillRect(0, topLeft, this.map.width * this.map.blockSize, 30)
+
+				// Draw lives
+				for (let i = 0; i < this.player.lives; i++) {
+					this.ctx.fillStyle = "#FFFF00"
+					this.ctx.beginPath()
+					this.ctx.moveTo(
+						150 + (25 * i) + this.map.blockSize / 2,
+						(topLeft + 1) + this.map.blockSize / 2
+					)
+					this.ctx.arc(
+						150 + (25 * i) + this.map.blockSize / 2,
+						(topLeft + 1) + this.map.blockSize / 2,
+						this.map.blockSize / 2,
+						Math.PI * 0.25, Math.PI * 1.75, false
+					)
+					this.ctx.fill()
+				}
+
+				// Sound indicator
+				this.ctx.fillStyle = !this.audioManager.isSoundDisabled() ? "#00FF00" : "#FF0000"
+				this.ctx.font = "bold 16px sans-serif"
+				this.ctx.fillText("♪", 10, textBase)
+
+				// Score and level
+				this.ctx.fillStyle = "#FFFF00"
+				this.ctx.font = "14px Arial"
+				this.ctx.fillText(`Score: ${this.player.score}`, 30, textBase)
+				this.ctx.fillText(`Level: ${this.level}`, 260, textBase)
+			}
+
+			redrawBlock(pos) {
+				this.map.drawBlock(Math.floor(pos.y / 10), Math.floor(pos.x / 10), this.ctx)
+				this.map.drawBlock(Math.ceil(pos.y / 10), Math.ceil(pos.x / 10), this.ctx)
+			}
+
+			mainDraw() {
+				const ghostPositions = []
+
+				// Move all entities
+				this.ghosts.forEach(ghost => {
+					ghostPositions.push(ghost.move())
+				})
+				const userPos = this.player.move()
+
+				// Redraw old positions
+				ghostPositions.forEach(pos => {
+					this.redrawBlock(pos.old)
+				})
+				this.redrawBlock(userPos.old)
+
+				// Draw entities
+				this.ghosts.forEach(ghost => {
+					ghost.draw(this.ctx)
+				})
+				this.player.draw(this.ctx)
+
+				// Check collisions
+				ghostPositions.forEach((ghostPos, i) => {
+					if (collided(userPos.new, ghostPos.new)) {
+						if (this.ghosts[i].isVulnerable()) {
+							this.audioManager.play('eatghost')
+							this.ghosts[i].eat()
+							this.eatenCount += 1
+							const score = this.eatenCount * 50
+							this.drawScore(score.toString(), ghostPos)
+							this.player.addScore(score)
+							this.setState(GAME_STATES.EATEN_PAUSE)
+							this.timerStart = this.tick
+						} else if (this.ghosts[i].isDangerous()) {
+							this.audioManager.play('die')
+							this.setState(GAME_STATES.DYING)
+							this.timerStart = this.tick
+						}
+					}
+				})
+
+				return { userPos: userPos.new, ghostPositions }
+			}
+
+			gameLoop() {
+				if (this.state !== GAME_STATES.PAUSE) {
+					this.tick++
+				}
+
+				this.map.drawPills(this.ctx)
+
+				if (this.state === GAME_STATES.PLAYING) {
+					const positions = this.mainDraw()
+					this.userPos = positions.userPos
+					this.ghostPos = positions.ghostPositions
+				} else if (this.state === GAME_STATES.WAITING && this.stateChanged) {
+					this.stateChanged = false
+					this.map.draw(this.ctx)
+					this.dialog("Press N to start a New game")
+				} else if (this.state === GAME_STATES.EATEN_PAUSE && (this.tick - this.timerStart) > (FPS / 3)) {
+					this.map.draw(this.ctx)
+					this.setState(GAME_STATES.PLAYING)
+				} else if (this.state === GAME_STATES.DYING) {
+					if (this.tick - this.timerStart > (FPS * 2)) {
+						this.loseLife()
+					} else {
+						this.redrawBlock(this.userPos)
+						this.ghostPos.forEach(pos => {
+							this.redrawBlock(pos.old)
+						})
+						this.ghosts.forEach(ghost => {
+							ghost.draw(this.ctx)
+						})
+						this.player.drawDead(this.ctx, (this.tick - this.timerStart) / (FPS * 2))
+					}
+				} else if (this.state === GAME_STATES.COUNTDOWN) {
+					const diff = 5 + Math.floor((this.timerStart - this.tick) / FPS)
+					
+					if (diff === 0) {
+						this.map.draw(this.ctx)
+						this.setState(GAME_STATES.PLAYING)
+					} else {
+						if (diff !== this.lastTime) {
+							this.lastTime = diff
+							this.map.draw(this.ctx)
+							this.dialog(`Starting in: ${diff}`)
+						}
+					}
+				}
+
+				this.drawFooter()
+			}
+
+			startGameLoop() {
+				const loop = () => {
+					this.gameLoop()
+					setTimeout(loop, 1000 / FPS)
+				}
+				loop()
+			}
+		}
+
+		// Initialize the game
+		window.addEventListener('load', () => {
+			const canvas = document.getElementById('gameCanvas')
+			new Game(canvas)
+		})
+	</script>
+</body>
+</html>
