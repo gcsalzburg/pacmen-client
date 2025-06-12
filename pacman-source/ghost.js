@@ -155,26 +155,45 @@ class Ghost {
 		ctx.closePath()
 		ctx.fill()
 
+		// Eyes - properly scaled
 		ctx.beginPath()
 		ctx.fillStyle = "#FFF"
-		ctx.arc(left + 6,top + 6, s / 6, 0, 300, false)
-		ctx.arc((left + s) - 6,top + 6, s / 6, 0, 300, false)
+		var eyeRadius = s / 6
+		var eyeOffsetX = s * 0.3  // 30% from left edge
+		var eyeOffsetY = s * 0.3  // 30% from top edge
+		
+		// Left eye
+		ctx.arc(left + eyeOffsetX, top + eyeOffsetY, eyeRadius, 0, Math.PI * 2, false)
+		// Right eye  
+		ctx.arc(left + s - eyeOffsetX, top + eyeOffsetY, eyeRadius, 0, Math.PI * 2, false)
 		ctx.closePath()
 		ctx.fill()
 
-		var f = s / 12
+		// Pupils - properly scaled and positioned
+		var pupilRadius = s / 15
+		var pupilOffset = s / 12
+
 		var off = {}
-		off[RIGHT] = [f, 0]
-		off[LEFT]  = [-f, 0]
-		off[UP]    = [0, -f]
-		off[DOWN]  = [0, f]
+		off[RIGHT] = [pupilOffset, 0]
+		off[LEFT]  = [-pupilOffset, 0]
+		off[UP]    = [0, -pupilOffset]
+		off[DOWN]  = [0, pupilOffset]
 
 		ctx.beginPath()
 		ctx.fillStyle = "#000"
-		ctx.arc(left+6+off[this.direction][0], top+6+off[this.direction][1], 
-				s / 15, 0, 300, false)
-		ctx.arc((left+s)-6+off[this.direction][0], top+6+off[this.direction][1], 
-				s / 15, 0, 300, false)
+		
+		// Left pupil
+		ctx.arc(
+			left + eyeOffsetX + off[this.direction][0], 
+			top + eyeOffsetY + off[this.direction][1], 
+			pupilRadius, 0, Math.PI * 2, false
+		)
+		// Right pupil
+		ctx.arc(
+			left + s - eyeOffsetX + off[this.direction][0], 
+			top + eyeOffsetY + off[this.direction][1], 
+			pupilRadius, 0, Math.PI * 2, false
+		)
 		ctx.closePath()
 		ctx.fill()
 	}

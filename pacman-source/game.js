@@ -32,11 +32,26 @@ class Game {
 		const blockSize = this.wrapper.offsetWidth / 19
 		const canvas = document.createElement("canvas")
 		
-		canvas.setAttribute("width", (blockSize * 19) + "px")
-		canvas.setAttribute("height", (blockSize * 22) + 30 + "px")
+		// Calculate actual canvas size
+		const canvasWidth = blockSize * 19
+		const canvasHeight = blockSize * 22 + 30
+		
+		// Set canvas size for crisp rendering
+		const pixelRatio = window.devicePixelRatio || 1
+		
+		// Set the actual size in memory (scaled to account for extra pixel density)
+		canvas.width = canvasWidth * pixelRatio
+		canvas.height = canvasHeight * pixelRatio
+		
+		// Set the size the element appears on the page
+		canvas.style.width = canvasWidth + "px"
+		canvas.style.height = canvasHeight + "px"
 
 		this.wrapper.appendChild(canvas)
 		this.ctx = canvas.getContext('2d')
+		
+		// Scale the drawing context so everything draws at the higher resolution
+		this.ctx.scale(pixelRatio, pixelRatio)
 
 		// Create game objects
 		this.audio = new AudioManager()
@@ -95,7 +110,7 @@ class Game {
 
 	dialog(text) {
 		this.ctx.fillStyle = "#FFFF00"
-		this.ctx.font = "14px Arial"
+		this.ctx.font = Math.floor(this.map.blockSize * 0.7) + "px Arial"
 		const width = this.ctx.measureText(text).width
 		const x = ((this.map.width * this.map.blockSize) - width) / 2
 		this.ctx.fillText(text, x, (this.map.height * 10) + 8)
@@ -103,7 +118,7 @@ class Game {
 
 	drawScore(text, position) {
 		this.ctx.fillStyle = "#FFFFFF"
-		this.ctx.font = "12px Arial"
+		this.ctx.font = Math.floor(this.map.blockSize * 0.6) + "px Arial"
 		this.ctx.fillText(text, 
 			(position["new"]["x"] / 10) * this.map.blockSize, 
 			((position["new"]["y"] + 5) / 10) * this.map.blockSize)
@@ -180,33 +195,36 @@ class Game {
 
 	drawFooter() {
 		const topLeft = (this.map.height * this.map.blockSize)
-		const textBase = topLeft + 17
+		const textBase = topLeft + Math.floor(this.map.blockSize * 0.8)
+		const blockSize = this.map.blockSize
 		
 		this.ctx.fillStyle = "#000000"
 		this.ctx.fillRect(0, topLeft, (this.map.width * this.map.blockSize), 30)
 		
 		this.ctx.fillStyle = "#FFFF00"
 
+		// Draw lives with proper scaling
 		for (let i = 0, len = this.player.getLives(); i < len; i++) {
 			this.ctx.fillStyle = "#FFFF00"
 			this.ctx.beginPath()
-			this.ctx.moveTo(150 + (25 * i) + this.map.blockSize / 2,
-						   (topLeft+1) + this.map.blockSize / 2)
+			const lifeX = 150 + (25 * i) + blockSize / 2
+			const lifeY = (topLeft + 1) + blockSize / 2
 			
-			this.ctx.arc(150 + (25 * i) + this.map.blockSize / 2,
-						(topLeft+1) + this.map.blockSize / 2,
-						this.map.blockSize / 2, Math.PI * 0.25, Math.PI * 1.75, false)
+			this.ctx.moveTo(lifeX, lifeY)
+			this.ctx.arc(lifeX, lifeY, blockSize / 2, Math.PI * 0.25, Math.PI * 1.75, false)
 			this.ctx.fill()
 		}
 
+		// Sound indicator with proper scaling
 		this.ctx.fillStyle = !this.soundDisabled() ? "#00FF00" : "#FF0000"
-		this.ctx.font = "bold 16px sans-serif"
+		this.ctx.font = "bold " + Math.floor(blockSize * 0.8) + "px sans-serif"
 		this.ctx.fillText("♪", 10, textBase)
 
+		// Score and level with proper scaling
 		this.ctx.fillStyle = "#FFFF00"
-		this.ctx.font = "14px Arial"
+		this.ctx.font = Math.floor(blockSize * 0.7) + "px Arial"
 		this.ctx.fillText("Score: " + this.player.theScore(), 30, textBase)
-		this.ctx.fillText("Level: " + this.level, 260, textBase)
+		this.ctx.fillText("Level: " + this.level, this.map.width * blockSize - 100, textBase)
 	}
 
 	redrawBlock(pos) {
