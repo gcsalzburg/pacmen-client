@@ -102,12 +102,12 @@ class Game {
 
 	async loadAudio() {
 		const audioFiles = [
-			["start", "audio/opening_song.mp3"],
-			["die", "audio/die.mp3"],
-			["eatghost", "audio/eatghost.mp3"],
-			["eatpill", "audio/eatpill.mp3"],
-			["eating", "audio/eating.short.mp3"],
-			["eating2", "audio/eating.short.mp3"]
+			["start", "assets/audio/opening_song.mp3"],
+			["die", "assets/audio/die.mp3"],
+			["eatghost", "assets/audio/eatghost.mp3"],
+			["eatpill", "assets/audio/eatpill.mp3"],
+			["eating", "assets/audio/eating.short.mp3"],
+			["eating2", "assets/audio/eating.short.mp3"]
 		]
 
 		try {
@@ -232,9 +232,7 @@ class Game {
 	}
 
 	mainLoop() {
-		if (this.state !== PAUSE) {
-			++this.tick
-		}
+		++this.tick
 
 		this.map.drawPills(this.ctx)
 
@@ -272,7 +270,11 @@ class Game {
 				if (diff !== this.lastTime) {
 					this.lastTime = diff
 					this.map.draw(this.ctx)
-					this.dialog(`New game starting in ${diff}...`)
+					if(this.player.startingLives == this.player.getLives()){
+						this.dialog(`New game starting in ${diff}...`)
+					}else{
+						this.dialog(`Restarting in ${diff}...`)
+					}
 				}
 			}
 		}

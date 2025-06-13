@@ -46,12 +46,12 @@
 		<div class="sound-panel">♪</div>
 	</div>
 
-	<script src="constants.js"></script>
-	<script src="audio.js"></script>
-	<script src="map.js"></script>
-	<script src="ghost.js"></script>
-	<script src="player.js"></script>
-	<script src="game.js"></script>
+	<script src="include/game/constants.js"></script>
+	<script src="include/game/audio.js"></script>
+	<script src="include/game/map.js"></script>
+	<script src="include/game/ghost.js"></script>
+	<script src="include/game/player.js"></script>
+	<script src="include/game/game.js"></script>
 
   	<script>
 	document.addEventListener('DOMContentLoaded', () => {
@@ -61,7 +61,8 @@
 			lives: document.querySelector('.lives'),
 			level: document.querySelector('.level'),
 			sound: document.querySelector('.sound-panel'),
-			message: document.querySelector('.message')
+			message: document.querySelector('.message'),
+			audio: 
 		})
 	})
   	</script>

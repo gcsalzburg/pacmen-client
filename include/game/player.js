@@ -10,6 +10,8 @@ class Player {
         this.lives = null
         this.score = 5
         this.keyMap = {}
+
+		  this.startingLives = 3
         
         this.setupKeyMapping()
         this.initUser()
@@ -43,7 +45,7 @@ class Player {
 
     initUser() {
         this.score = 0
-        this.lives = 3
+        this.lives = this.startingLives
         this.newLevel()
     }
     
