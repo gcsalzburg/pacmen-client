@@ -1,5 +1,5 @@
 class Game {
-	constructor(wrapper) {
+	constructor(opts) {
 		// Game state
 		this.state = WAITING
 		this.stateChanged = true
@@ -19,8 +19,15 @@ class Game {
 		this.player = null
 		this.ctx = null
 		
-		// Setup
-		this.wrapper = wrapper
+		// Setup DOM
+		this.wrapper = opts.container
+		this.dom = {
+			score : opts.score,
+			lives : opts.lives,
+			level : opts.level,
+			sound : opts.sound
+		}
+
 		this.init()
 	}
 
@@ -34,7 +41,7 @@ class Game {
 		
 		// Calculate actual canvas size
 		const canvasWidth = blockSize * 19
-		const canvasHeight = blockSize * 22 + 30
+		const canvasHeight = blockSize * 22
 		
 		// Set canvas size for crisp rendering
 		const pixelRatio = window.devicePixelRatio || 1
@@ -105,7 +112,18 @@ class Game {
 	}
 
 	startMainLoop() {
-		setInterval(() => this.mainLoop(), 1000 / Pacman.FPS)
+		let lastTime = performance.now();
+		const frameDuration = 1000 / Pacman.FPS;
+
+		const loop = (now) => {
+			if (now - lastTime >= frameDuration) {
+				this.mainLoop();
+				lastTime = now;
+			}
+			requestAnimationFrame(loop);
+		};
+
+		requestAnimationFrame(loop);
 	}
 
 	dialog(text) {
@@ -193,38 +211,11 @@ class Game {
 						  Math.pow(ghost.y - user.y, 2))) < 10
 	}
 
-	drawFooter() {
-		const topLeft = (this.map.height * this.map.blockSize)
-		const textBase = topLeft + Math.floor(this.map.blockSize * 0.8)
-		const blockSize = this.map.blockSize
-		
-		this.ctx.fillStyle = "#000000"
-		this.ctx.fillRect(0, topLeft, (this.map.width * this.map.blockSize), 30)
-		
-		this.ctx.fillStyle = "#FFFF00"
-
-		// Draw lives with proper scaling
-		for (let i = 0, len = this.player.getLives(); i < len; i++) {
-			this.ctx.fillStyle = "#FFFF00"
-			this.ctx.beginPath()
-			const lifeX = 150 + (25 * i) + blockSize / 2
-			const lifeY = (topLeft + 1) + blockSize / 2
-			
-			this.ctx.moveTo(lifeX, lifeY)
-			this.ctx.arc(lifeX, lifeY, blockSize / 2, Math.PI * 0.25, Math.PI * 1.75, false)
-			this.ctx.fill()
-		}
-
-		// Sound indicator with proper scaling
-		this.ctx.fillStyle = !this.soundDisabled() ? "#00FF00" : "#FF0000"
-		this.ctx.font = "bold " + Math.floor(blockSize * 0.8) + "px sans-serif"
-		this.ctx.fillText("♪", 10, textBase)
-
-		// Score and level with proper scaling
-		this.ctx.fillStyle = "#FFFF00"
-		this.ctx.font = Math.floor(blockSize * 0.7) + "px Arial"
-		this.ctx.fillText("Score: " + this.player.theScore(), 30, textBase)
-		this.ctx.fillText("Level: " + this.level, this.map.width * blockSize - 100, textBase)
+	updateStats() {
+		this.dom.score.textContent = this.player.theScore()
+		this.dom.lives.textContent = this.player.getLives() // TODO: Draw little pacman faces for the lives here
+		this.dom.level.textContent = this.level
+		this.dom.sound.classList.toggle("disabled", this.soundDisabled())
 	}
 
 	redrawBlock(pos) {
@@ -315,7 +306,7 @@ class Game {
 			}
 		}
 
-		this.drawFooter()
+		this.updateStats()
 	}
 
 	eatenPill() {

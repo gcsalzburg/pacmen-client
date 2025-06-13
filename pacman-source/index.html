@@ -15,15 +15,24 @@
 			align-items: center;
 		}
       .pacman-wrapper {
-        height:850px;
-		  aspect-ratio: 342 / 450;
+        height:750px;
+		  aspect-ratio: 19 / 22;
       }
+
+		.sound-panel.disabled{color:red;}
+		.sound-panel:not(.disabled){color: green;}
     </style>
 
 </head>
 
 <body>
 	<div class="pacman-wrapper"></div>
+	<div class="game-stats">
+		<div class="score-panel">Score: <span class="score">-</span></div>
+		<div class="lives-panel">Lives: <span class="lives">-</span></div>
+		<div class="level-panel">Level: <span class="level">-</span></div>
+		<div class="sound-panel">♪</div>
+	</div>
 
 	<script src="constants.js"></script>
 	<script src="audio.js"></script>
@@ -33,9 +42,14 @@
 	<script src="game.js"></script>
 
   	<script>
-	window.addEventListener('load', () => {
-		const wrapper = document.querySelector('.pacman-wrapper') // or whatever your wrapper element is
-		new Game(wrapper)
+	document.addEventListener('DOMContentLoaded', () => {
+		new Game({
+			container: document.querySelector('.pacman-wrapper'),
+			score: document.querySelector('.score'),
+			lives: document.querySelector('.lives'),
+			level: document.querySelector('.level'),
+			sound: document.querySelector('.sound-panel'),
+		})
 	})
   	</script>
 </body>
