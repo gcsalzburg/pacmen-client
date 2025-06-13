@@ -85,13 +85,13 @@ class Game {
 			this.audio.toggleSound()
 		})
 
-		document.addEventListener("keydown", (e) => {
-			this.player.keyDown(e)
-		}, true)
-		document.addEventListener("keypress", (e) => {
-			e.preventDefault()
-			e.stopPropagation()
-		}, true)
+	//	document.addEventListener("keydown", (e) => {
+	//		this.player.keyDown(e)
+	//	}, true)
+	//	document.addEventListener("keypress", (e) => {
+	//		e.preventDefault()
+	//		e.stopPropagation()
+	//	}, true)
 		
 		// Start a new game as soon as page loads
 		this.startNewGame()
@@ -139,7 +139,7 @@ class Game {
 	}
 
 	soundDisabled() {
-		return this.audio.isSoundDisabled()
+		return this.audio.disabled
 	}
 
 	startLevel() {
@@ -172,6 +172,10 @@ class Game {
 	setState(nState) {
 		this.state = nState
 		this.stateChanged = true
+	}
+
+	setPlayerDirection(direction) {
+		this.player.setPlayerDue(direction)
 	}
 
 	collided(user, ghost) {

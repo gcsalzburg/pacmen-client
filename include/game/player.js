@@ -18,10 +18,10 @@ class Player {
     }
 
     setupKeyMapping() {
-        this.keyMap["ArrowLeft"] = LEFT
-        this.keyMap["ArrowUp"] = UP
-        this.keyMap["ArrowRight"] = RIGHT
-        this.keyMap["ArrowDown"] = DOWN
+        this.keyMap["left"] = LEFT
+        this.keyMap["up"] = UP
+        this.keyMap["right"] = RIGHT
+        this.keyMap["down"] = DOWN
     }
 
     addScore(nScore) { 
@@ -65,15 +65,13 @@ class Player {
         this.resetPosition()
     }
 
-    keyDown(e) {
-        if (typeof this.keyMap[e.key] !== "undefined") { 
-            this.due = this.keyMap[e.key]
-            e.preventDefault()
-            e.stopPropagation()
-            return false
-        }
-        return true
-    }
+	setPlayerDue(direction) {
+		if (typeof this.keyMap[direction] !== "undefined") { 
+			this.due = this.keyMap[direction]
+			return false
+		}
+		return true
+	}
 
     getNewCoord(dir, current) {   
         return {

@@ -27,13 +27,5 @@ class AudioManager {
 	toggleSound() {
 		this.disabled = !this.disabled
 		localStorage.setItem('soundDisabled', this.disabled.toString())
-		
-		if (this.disabled) {
-			this.pause()
-		}
-	}
-
-	isSoundDisabled() {
-		return this.disabled
 	}
 }
