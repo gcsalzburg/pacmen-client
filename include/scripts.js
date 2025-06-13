@@ -28,9 +28,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
 	// Connect to PartyKit server
 	function connect() {
-		// Replace with your actual PartyKit URL
-	//	ws = new WebSocket('https://my-partykit-game.gcsalzburg.partykit.dev/party/main')
-		ws = new WebSocket('http://127.0.0.1:1999/party/main')
+
+		// Deployed
+		ws = new WebSocket('https://pacmen.gcsalzburg.partykit.dev/party/main')
+
+		// Local testing
+	//	ws = new WebSocket('http://127.0.0.1:1999/party/main')
 		
 		ws.onopen = () => {
 			console.log('Connected to Pacman server');
