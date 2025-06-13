@@ -25,7 +25,8 @@ class Game {
 			score : opts.score,
 			lives : opts.lives,
 			level : opts.level,
-			sound : opts.sound
+			sound : opts.sound,
+			message: opts.message
 		}
 
 		this.init()
@@ -35,9 +36,10 @@ class Game {
 		return this.tick
 	}
 
-	init() {
+	async init() {
 		const blockSize = this.wrapper.offsetWidth / 19
 		const canvas = document.createElement("canvas")
+		canvas.style.position = "absolute"
 		
 		// Calculate actual canvas size
 		const canvasWidth = blockSize * 19
@@ -78,7 +80,24 @@ class Game {
 		this.map.draw(this.ctx)
 		this.dialog("Loading ...")
 
-		this.loadAudio()
+		await this.loadAudio()
+		this.dom.sound.addEventListener("click", () => {
+			this.audio.toggleSound()
+		})
+
+		document.addEventListener("keydown", (e) => {
+			this.player.keyDown(e)
+		}, true)
+		document.addEventListener("keypress", (e) => {
+			e.preventDefault()
+			e.stopPropagation()
+		}, true)
+		
+		// Start a new game as soon as page loads
+		this.startNewGame()
+
+		// Begin!
+		this.startMainLoop()
 	}
 
 	async loadAudio() {
@@ -98,17 +117,6 @@ class Game {
 		} catch (error) {
 			console.log('Some audio files failed to load:', error)
 		}
-
-		this.loaded()
-	}
-
-	loaded() {
-		this.dialog("Press N to Start")
-		
-		document.addEventListener("keydown", (e) => this.keyDown(e), true)
-		document.addEventListener("keypress", (e) => this.keyPress(e), true)
-		
-		this.startMainLoop()
 	}
 
 	startMainLoop() {
@@ -127,19 +135,7 @@ class Game {
 	}
 
 	dialog(text) {
-		this.ctx.fillStyle = "#FFFF00"
-		this.ctx.font = Math.floor(this.map.blockSize * 0.7) + "px Arial"
-		const width = this.ctx.measureText(text).width
-		const x = ((this.map.width * this.map.blockSize) - width) / 2
-		this.ctx.fillText(text, x, (this.map.height * 10) + 8)
-	}
-
-	drawScore(text, position) {
-		this.ctx.fillStyle = "#FFFFFF"
-		this.ctx.font = Math.floor(this.map.blockSize * 0.6) + "px Arial"
-		this.ctx.fillText(text, 
-			(position["new"]["x"] / 10) * this.map.blockSize, 
-			((position["new"]["y"] + 5) / 10) * this.map.blockSize)
+		this.dom.message.textContent = text
 	}
 
 	soundDisabled() {
@@ -163,34 +159,6 @@ class Game {
 		this.map.reset()
 		this.map.draw(this.ctx)
 		this.startLevel()
-	}
-
-	keyDown(e) {
-		if (e.key === 'n' || e.key === 'N') {
-			this.startNewGame()
-		} else if (e.key === 's' || e.key === 'S') {
-			this.audio.toggleSound()
-		} else if ((e.key === 'p' || e.key === 'P') && this.state === PAUSE) {
-			this.audio.resume()
-			this.map.draw(this.ctx)
-			this.setState(this.stored)
-		} else if (e.key === 'p' || e.key === 'P') {
-			this.stored = this.state
-			this.setState(PAUSE)
-			this.audio.pause()
-			this.map.draw(this.ctx)
-			this.dialog("Paused")
-		} else if (this.state !== PAUSE) {
-			return this.player.keyDown(e)
-		}
-		return true
-	}
-
-	keyPress(e) {
-		if (this.state !== WAITING && this.state !== PAUSE) {
-			e.preventDefault()
-			e.stopPropagation()
-		}
 	}
 
 	loseLife() {
@@ -250,8 +218,8 @@ class Game {
 					this.ghosts[i].eat()
 					this.eatenCount += 1
 					const nScore = this.eatenCount * 50
-					this.drawScore(nScore.toString(), this.ghostPos[i])
 					this.player.addScore(nScore)
+					this.updateStats()
 					this.setState(EATEN_PAUSE)
 					this.timerStart = this.tick
 				} else if (this.ghosts[i].isDangerous()) {
@@ -275,7 +243,9 @@ class Game {
 		} else if (this.state === WAITING && this.stateChanged) {
 			this.stateChanged = false
 			this.map.draw(this.ctx)
-			this.dialog("Press N to start a New game")
+
+			// Go again automatically!
+			this.startNewGame()
 		} else if (this.state === EATEN_PAUSE && 
 				   (this.tick - this.timerStart) > (Pacman.FPS / 3)) {
 			this.map.draw(this.ctx)
@@ -292,16 +262,17 @@ class Game {
 				this.player.drawDead(this.ctx, (this.tick - this.timerStart) / (Pacman.FPS * 2))
 			}
 		} else if (this.state === COUNTDOWN) {
-			const diff = 5 + Math.floor((this.timerStart - this.tick) / Pacman.FPS)
+			const diff = 4 + Math.floor((this.timerStart - this.tick) / Pacman.FPS)
 			
 			if (diff === 0) {
 				this.map.draw(this.ctx)
 				this.setState(PLAYING)
+				this.dialog("")
 			} else {
 				if (diff !== this.lastTime) {
 					this.lastTime = diff
 					this.map.draw(this.ctx)
-					this.dialog("Starting in: " + diff)
+					this.dialog(`New game starting in ${diff}...`)
 				}
 			}
 		}

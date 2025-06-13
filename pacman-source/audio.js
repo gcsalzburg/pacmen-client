@@ -23,19 +23,7 @@ class AudioManager {
 		audio.currentTime = 0  // Reset to beginning
 		audio.play().catch(e => console.log('Audio play failed:', e))
 	}
-
-	pause() {
-		this.sounds.forEach(audio => {
-			if (!audio.paused) audio.pause()
-		})
-	}
-
-	resume() {
-		// Note: Can't resume paused audio without user interaction in modern browsers
-		// This is a browser security limitation
-		console.log('Resume called - modern browsers require user interaction to play audio')
-	}
-
+	
 	toggleSound() {
 		this.disabled = !this.disabled
 		localStorage.setItem('soundDisabled', this.disabled.toString())

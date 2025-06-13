@@ -15,9 +15,19 @@
 			align-items: center;
 		}
       .pacman-wrapper {
-        height:750px;
-		  aspect-ratio: 19 / 22;
+			height:750px;
+			aspect-ratio: 19 / 22;
+			position: relative;
+			display: flex;
+			justify-content: center;
+			align-items: center;
       }
+		.message{
+			font-family: sans-serif;
+			color: yellow;
+			font-size: 2.5em;
+			z-index: 100;
+		}
 
 		.sound-panel.disabled{color:red;}
 		.sound-panel:not(.disabled){color: green;}
@@ -26,7 +36,9 @@
 </head>
 
 <body>
-	<div class="pacman-wrapper"></div>
+	<div class="pacman-wrapper">
+		<div class="message">Test</div>
+	</div>
 	<div class="game-stats">
 		<div class="score-panel">Score: <span class="score">-</span></div>
 		<div class="lives-panel">Lives: <span class="lives">-</span></div>
@@ -49,6 +61,7 @@
 			lives: document.querySelector('.lives'),
 			level: document.querySelector('.level'),
 			sound: document.querySelector('.sound-panel'),
+			message: document.querySelector('.message')
 		})
 	})
   	</script>
